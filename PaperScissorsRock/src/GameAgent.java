@@ -12,24 +12,11 @@ import jade.domain.FIPAAgentManagement.ServiceDescription;
 
 import java.time.LocalTime;
 
-import static java.time.temporal.ChronoUnit.SECONDS;
-
-public class BookBuyerAgent extends Agent {
-  private BookBuyerGui myGui;
-  private String targetBookTitle;
-  public int budget = 100;
-  
-  //list of found sellers
-  private AID[] sellerAgents;
+public class GameAgent extends Agent {
+  private AID[] playerAgents;
   
 	protected void setup() {
-	  targetBookTitle = "";
-	  System.out.println("Hello! " + getAID().getLocalName() + " is ready for the purchase order. With Budget: " + budget);
-	  myGui = new BookBuyerGui(this);
-	  myGui.display();
-		//time interval for buyer for sending subsequent CFP
-		//as a CLI argument
-		int interval = 20000;
+		int interval = 10000;
 		Object[] args = getArguments();
 		if (args != null && args.length > 0) interval = Integer.parseInt(args[0].toString());
 	  addBehaviour(new TickerBehaviour(this, interval)
@@ -49,11 +36,11 @@ public class BookBuyerAgent extends Agent {
 				  {
 					  DFAgentDescription[] result = DFService.search(myAgent, template);
 					  System.out.println(getAID().getLocalName() + ": the following sellers have been found");
-					  sellerAgents = new AID[result.length];
+					  playerAgents = new AID[result.length];
 					  for (int i = 0; i < result.length; ++i)
 					  {
-						  sellerAgents[i] = result[i].getName();
-						  System.out.println(sellerAgents[i].getLocalName());
+						  playerAgents[i] = result[i].getName();
+						  System.out.println(playerAgents[i].getLocalName());
 					  }
 				  }
 				  catch (FIPAException fe) { fe.printStackTrace(); }
@@ -77,9 +64,9 @@ public class BookBuyerAgent extends Agent {
 		});
 	}
 
-    	protected void takeDown() {
-		myGui.dispose();
-		System.out.println("Buyer agent " + getAID().getLocalName() + " terminated.");
+	protected void takeDown()
+	{
+		System.out.println("Game agent " + getAID().getLocalName() + " terminated.");
 	}
   
 	private class RequestPerformer extends Behaviour {
@@ -91,13 +78,28 @@ public class BookBuyerAgent extends Agent {
 
 	  private LocalTime t0;
 	
-	  public void action() {
-	    switch (step) {
+	  public void action()
+	  {
+		  ACLMessage turnStartRequest = new ACLMessage(ACLMessage.REQUEST);
+		  for (AID player : playerAgents) turnStartRequest.addReceiver(player);
+		  turnStartRequest.setContent("start");
+		  turnStartRequest.setConversationId("game-start");
+		  turnStartRequest.setReplyWith("turnStartRequest"+System.currentTimeMillis()); //unique value
+		  myAgent.send(turnStartRequest);
+		  mt = MessageTemplate.and(MessageTemplate.MatchConversationId("game-start"),
+				  MessageTemplate.MatchInReplyTo(turnStartRequest.getReplyWith()));
+		  t0 = LocalTime.now(); //think if it's necessary
+
+		  ACLMessage reply = myAgent.receive(mt); ///licznik do dwóch z użyciem blocka
+
+
+
+		  switch (step) {
 	    case 0:
 	      //call for proposal (CFP) to found sellers
 	      ACLMessage cfp = new ACLMessage(ACLMessage.CFP);
-	      for (int i = 0; i < sellerAgents.length; ++i) {
-	        cfp.addReceiver(sellerAgents[i]);
+	      for (int i = 0; i < playerAgents.length; ++i) {
+	        cfp.addReceiver(playerAgents[i]);
 	      } 
 	      cfp.setContent(targetBookTitle);
 	      cfp.setConversationId("book-trade");
@@ -139,7 +141,7 @@ public class BookBuyerAgent extends Agent {
 	          }
 	        }
 			  repliesCnt++;
-			  if (repliesCnt >= sellerAgents.length)
+			  if (repliesCnt >= playerAgents.length)
 			{
 	          //all proposals have been received
 	          step = 2; 
