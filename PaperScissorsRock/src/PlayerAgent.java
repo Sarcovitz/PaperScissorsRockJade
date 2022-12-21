@@ -38,8 +38,7 @@ public class PlayerAgent extends Agent
 		catch (FIPAException fe) { fe.printStackTrace(); }
 
 		addBehaviour(new StartGameServer());
-		addBehaviour(new PurchaseOrdersServer());
-		addBehaviour(new ClearLockerService());
+		addBehaviour(new ResultServer());
 	}
 
 	protected void takeDown()
@@ -79,68 +78,17 @@ public class PlayerAgent extends Agent
 	}
 
 	
-	private class PurchaseOrdersServer extends CyclicBehaviour {
+	private class ResultServer extends CyclicBehaviour {
 	  public void action() {
-	    //purchase order as proposal acceptance only template
-		MessageTemplate mt = MessageTemplate.MatchPerformative(ACLMessage.ACCEPT_PROPOSAL);
+		MessageTemplate mt = MessageTemplate.MatchPerformative(ACLMessage.INFORM);
 		ACLMessage msg = myAgent.receive(mt);
 	    if (msg != null) {
-	      String title = msg.getContent();
-	      ACLMessage reply = msg.createReply();
-	      Integer price = (Integer) getPrice(title, msg.getSender().getLocalName());//catalogue.remove(title);
-	      if (price != null)
-		  {
-	        reply.setPerformative(ACLMessage.INFORM);
-	        System.out.println(getAID().getLocalName() + ": " + title + " sold to " + msg.getSender().getLocalName());
-	      }
-	      else {
-	        //title not found in the catalogue, sold to another agent in the meantime (after proposal submission)
-	        reply.setPerformative(ACLMessage.FAILURE);
-	        reply.setContent("not-available");
-	      }
-	      myAgent.send(reply);
+	       enemyData.add(parseFigures(msg.getContent()));
 	    }
 	    else {
 		  block();
 		}
 	  }
-	}
-
-	Integer getPrice(String title, String sender)
-	{ lockerItem temp;
-		if(catalogue.containsKey(title)) return catalogue.remove(title);
-		else
-		{
-			for (var x : locker )
-			{
-				if(x.sender.equals(sender)  && x.title.equals(title))
-				{
-					 temp = x;
-					 locker.remove(x);
-					 return x.price;
-				}
-			}
-			return null;
-		}
-	}
-
-	private class ClearLockerService extends CyclicBehaviour {
-	  public void action(){
-		  List<lockerItem> temp;
-		  temp = new ArrayList<>();
-		  for(var x : locker)
-		  {
-			  if((LocalTime.now().toSecondOfDay() - x.time) == 20 ) {
-				  catalogue.put(x.title, x.price);
-				  temp.add(x);
-			  }
-		  }
-
-		  for(var t : temp)
-		  {
-			  locker.remove(t);
-		  }
-		}
 	}
 
 	private void initializeStartData()
@@ -170,6 +118,17 @@ public class PlayerAgent extends Agent
 			case PAPER -> Figures.SCISSORS;
 			default -> Figures.ROCK;
 		};
+	}
+
+	private Figures parseFigures(String figure)
+	{
+		return switch (figure)
+				{
+					case "ROCK" -> Figures.ROCK;
+					case "SCISSORS" -> Figures.SCISSORS;
+					case "PAPER" -> Figures.PAPER;
+					default -> Figures.PAPER;
+				};
 	}
 
 }
