@@ -57,6 +57,7 @@ public class GameAgent extends Agent {
 	private class RequestPerformer extends Behaviour {
 	  private AID winner;
 	  private Figures p1result, p2result;
+	  private double p1chance, p2chance;
 	  private int repliesCnt = 0;
 	  private MessageTemplate mt;
 	  private int step = 0;
@@ -75,7 +76,7 @@ public class GameAgent extends Agent {
 			myAgent.send(turnStartRequest);
 			mt = MessageTemplate.and(MessageTemplate.MatchConversationId("game-start"),
 					MessageTemplate.MatchInReplyTo(turnStartRequest.getReplyWith()));
-			t0 = LocalTime.now(); //think if it's necessary
+			t0 = LocalTime.now();
 	      step = 1;
 	      break;
 	    case 1:
@@ -95,10 +96,14 @@ public class GameAgent extends Agent {
 			{
 	          //proposal received
 				System.out.println( reply.getSender().getLocalName()+" "+ reply.getContent());
-				if(reply.getSender().getLocalName().equals("p1"))
+				if(reply.getSender().getLocalName().equals("p1")) {
 					p1result = parseFigures(reply.getContent());
-				else
+					p1chance = Double.parseDouble(reply.getOntology());
+				}
+				else {
 					p2result = parseFigures(reply.getContent());
+					p2chance = Double.parseDouble(reply.getOntology());
+				}
 	        }
 			  repliesCnt++;
 			  if (repliesCnt >= playerAgents.length) step = 2;
@@ -107,7 +112,10 @@ public class GameAgent extends Agent {
 	      break;
 	    case 2:
 			String result = getWinner(p1result, p2result);
-			System.out.println("Winner: " + result);
+			if(result.equals("draw"))
+				System.out.println("Result: Draw");
+			else
+				System.out.println("Winner: " + result + " with chance: " + (int)(((result.equals("p1") ? p1chance : p2chance))*100) + "%");
 			System.out.println();
 
 			ACLMessage p1mess = new ACLMessage(ACLMessage.INFORM);

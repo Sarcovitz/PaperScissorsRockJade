@@ -70,7 +70,9 @@ public class PlayerAgent extends Agent
 		{
 			ACLMessage reply = msg.createReply();
 			reply.setPerformative(ACLMessage.AGREE);
-			reply.setContent(String.valueOf(getRandomFigure()));
+			Figures figure = getRandomFigure();
+			reply.setContent(String.valueOf(figure));
+			reply.setOntology(String.valueOf(GetChance(figure)));
 			myAgent.send(reply);
 	    }
 	    else block();
@@ -82,12 +84,8 @@ public class PlayerAgent extends Agent
 	  public void action() {
 		MessageTemplate mt = MessageTemplate.MatchPerformative(ACLMessage.INFORM);
 		ACLMessage msg = myAgent.receive(mt);
-	    if (msg != null) {
-	       enemyData.add(parseFigures(msg.getContent()));
-	    }
-	    else {
-		  block();
-		}
+	    if (msg != null) enemyData.add(getOposite(parseFigures(msg.getContent())));
+	    else block();
 	  }
 	}
 
@@ -110,6 +108,17 @@ public class PlayerAgent extends Agent
 		if(enemyData.size() == 3) return startData.get(ThreadLocalRandom.current().nextInt(startData.size()));
 		else return enemyData.get(ThreadLocalRandom.current().nextInt(enemyData.size()));
 	}
+
+	private double GetChance(Figures figure)
+	{
+		if(enemyData.size() == 3) return (double)1/3;
+		else
+		{
+			long quantity = enemyData.stream().filter(figure::equals).count();
+			return (double)quantity/enemyData.size();
+		}
+	}
+
 	private Figures getOposite(Figures figure)
 	{
 		return switch (figure)
